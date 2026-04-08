@@ -1,0 +1,45 @@
+name: Simulate All RTL Modules
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Verilog tools
+      run: |
+        sudo apt update
+        sudo apt install -y iverilog gtkwave
+    
+    - name: Find all RTL modules
+      id: find_modules
+      run: |
+        echo "modules=$(find rtl -name 'rtl_*.v' -exec dirname {} \; | tr '\n' ' ')" >> $GITHUB_OUTPUT
+    
+    - name: Run simulations
+      run: |
+        for module in ${{ steps.find_modules.outputs.modules }}; do
+          module_name=$(basename $module)
+          echo "Testing $module_name..."
+          
+          # Compile
+          iverilog -o results/$module_name/sim_$module_name.vvp \
+            $module/rtl_${module_name}.v $module/tb_${module_name}.v
+          
+          # Run simulation
+          vvp results/$module_name/sim_$module_name.vvp +vcd=results/$module_name/sim_$module_name.vcd +logfile=results/$module_name/log_$module_name.txt
+          
+          echo "✅ $module_name completed"
+        done
+    
+    - name: Upload results
+      uses: actions/upload-artifact@v3
+      with:
+        name: simulation-results
+        path: results/

@@ -17,28 +17,21 @@ jobs:
  sudo apt update
  sudo apt install -y iverilog gtkwave
  
- - name: Find all gate modules
- id: find_modules
- run: |
- # Find all directories ending with "_gate"
- modules=$(find rtl -type d -name "*_gate" | tr '\n' ' ')
- echo "modules=$modules" >> $GITHUB_OUTPUT
- 
  - name: Run simulations
  run: |
  # Create results directory
  mkdir -p results
  
- # Process each module directory
- for module_dir in ${{ steps.find_modules.outputs.modules }}; do
+ # Find all directories ending with "_gate" and process each one
+ for module_dir in $(find rtl -type d -name "*_gate"); do
  module_name=$(basename $module_dir)
  echo "Testing $module_name..."
  
  # Find files in this module directory
- rtl_file=$(find "$module_dir" -name "*.v" | grep -v tb | head -1)
+ rtl_file=$(find "$module_dir" -name "*.v" | head -1)
  tb_file=$(find "$module_dir" -name "tb_*.v" | head -1)
  
- # Alternative: Try your specific naming pattern
+ # Also try your specific naming pattern: AND.v, OR.v, etc.
  if [ -z "$rtl_file" ]; then
  rtl_file=$(find "$module_dir" -name "${module_name}.v" | head -1)
  fi
@@ -58,12 +51,12 @@ jobs:
  
  # Run simulation
  vvp "results/$module_name/sim_$module_name.vvp" +vcd="results/$module_name/sim_$module_name.vcd" +logfile="results/$module_name/log_$module_name.txt"
- echo " $module_name: Success"
+ echo "✅ $module_name: Success"
  else
- echo "$module_name: Compilation failed"
+ echo "❌ $module_name: Compilation failed"
  fi
  else
- echo "$module_name: Missing RTL or testbench file"
+ echo "❌ $module_name: Missing RTL or testbench file"
  fi
 done
  
